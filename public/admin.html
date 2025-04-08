@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Administración - WhatsApp</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    .card {
+      transition: all 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+    .btn-primary {
+      transition: all 0.3s ease;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(37, 99, 235, 0.3);
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div class="container mx-auto px-4 py-8 max-w-md">
+    <!-- Card Container -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden p-6 card">
+      <div class="text-center mb-8">
+        <i class="fab fa-whatsapp text-5xl text-green-500 mb-4"></i>
+        <h2 class="text-2xl font-bold text-gray-800">Panel de Administración</h2>
+        <p class="text-gray-600">Gestión del número de WhatsApp</p>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm" class="mb-6">
+        <div class="mb-4">
+          <label class="block text-gray-700 text-sm font-bold mb-2" for="email">
+            Correo electrónico
+          </label>
+          <input 
+            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" 
+            id="email" 
+            type="email" 
+            name="email" 
+            placeholder="tucorreo@ejemplo.com"
+            required>
+        </div>
+        <div class="mb-6">
+          <label class="block text-gray-700 text-sm font-bold mb-2" for="password">
+            Contraseña
+          </label>
+          <input 
+            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" 
+            id="password" 
+            type="password" 
+            name="password" 
+            placeholder="••••••••"
+            required>
+        </div>
+        <div class="flex items-center justify-between">
+          <button 
+            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full btn-primary" 
+            type="submit">
+            <i class="fas fa-sign-in-alt mr-2"></i> Iniciar sesión
+          </button>
+        </div>
+      </form>
+
+      <!-- Admin Panel -->
+      <div id="panel" class="hidden">
+        <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+          <h3 class="text-lg font-semibold text-gray-700 mb-2">Número actual de WhatsApp</h3>
+          <p class="text-xl font-bold text-gray-800">
+            <span id="currentNumber" class="text-blue-600">Cargando...</span>
+          </p>
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-gray-700 text-sm font-bold mb-2" for="newNumber">
+            Nuevo número (sin +)
+          </label>
+          <input 
+            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" 
+            id="newNumber" 
+            type="text" 
+            placeholder="Ej: 5491123456789">
+        </div>
+
+        <div class="flex space-x-4">
+          <button 
+            id="saveBtn" 
+            class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline flex-1 btn-primary">
+            <i class="fas fa-save mr-2"></i> Guardar
+          </button>
+          <button 
+            id="logoutBtn" 
+            class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline flex-1">
+            <i class="fas fa-sign-out-alt mr-2"></i> Salir
+          </button>
+        </div>
+      </div>
+
+      <!-- Status Messages -->
+      <div id="statusMessage" class="mt-6 hidden">
+        <div class="p-4 rounded-lg">
+          <p id="statusText" class="text-center"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-8 text-center text-gray-500 text-sm">
+      <p>BusinessGroup &copy; <span id="currentYear"></span> - Todos los derechos reservados</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+
+    // Configuración de Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyB6S-KivarTezScmPZdKcJ-_OF3YET6kqE",
+      authDomain: "business-group-86f02.firebaseapp.com",
+      projectId: "business-group-86f02",
+      storageBucket: "business-group-86f02.appspot.com",
+      messagingSenderId: "990636761949",
+      appId: "1:990636761949:web:062e467bc57bf1414a7eb4"
+    };
+
+    // Inicializar Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    // UID autorizado
+    const allowedUID = "GxKLDGPeKoemfY5Vbb3mfZjnOBV2";
+
+    // Elementos del DOM
+    const loginForm = document.getElementById("loginForm");
+    const panel = document.getElementById("panel");
+    const currentNumberSpan = document.getElementById("currentNumber");
+    const newNumberInput = document.getElementById("newNumber");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const statusMessage = document.getElementById("statusMessage");
+    const statusText = document.getElementById("statusText");
+
+    // Mostrar año actual
+    document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+    // Mostrar mensaje de estado
+    function showStatus(message, isSuccess = true) {
+      statusText.textContent = message;
+      statusMessage.className = isSuccess 
+        ? 'mt-6 p-4 bg-green-100 text-green-700 rounded-lg' 
+        : 'mt-6 p-4 bg-red-100 text-red-700 rounded-lg';
+      statusMessage.classList.remove('hidden');
+      
+      setTimeout(() => {
+        statusMessage.classList.add('hidden');
+      }, 5000);
+    }
+
+    // Iniciar sesión
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = loginForm.email.value;
+      const password = loginForm.password.value;
+
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        showStatus("Inicio de sesión exitoso");
+      } catch (err) {
+        console.error("Error de login:", err);
+        showStatus("Error de inicio de sesión: " + err.message, false);
+      }
+    });
+
+    // Cerrar sesión
+    logoutBtn.addEventListener("click", async () => {
+      try {
+        await signOut(auth);
+        showStatus("Sesión cerrada correctamente");
+      } catch (err) {
+        console.error("Error al cerrar sesión:", err);
+        showStatus("Error al cerrar sesión", false);
+      }
+    });
+
+    // Observar cambios de autenticación
+    onAuthStateChanged(auth, async (user) => {
+      if (user && user.uid === allowedUID) {
+        // Usuario autorizado
+        loginForm.classList.add("hidden");
+        panel.classList.remove("hidden");
+
+        try {
+          // Obtener número actual
+          const docRef = doc(db, "config", "whatsapp");
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            currentNumberSpan.textContent = docSnap.data().number;
+          } else {
+            currentNumberSpan.textContent = "No configurado";
+            showStatus("No se encontró número configurado", false);
+          }
+        } catch (error) {
+          console.error("Error al obtener número:", error);
+          showStatus("Error al obtener número de WhatsApp", false);
+        }
+
+      } else if (user) {
+        // Usuario no autorizado
+        showStatus("No tienes permiso para acceder a este panel", false);
+        await signOut(auth);
+      } else {
+        // No hay usuario logueado
+        loginForm.classList.remove("hidden");
+        panel.classList.add("hidden");
+      }
+    });
+
+    // Guardar nuevo número
+    document.getElementById("saveBtn").addEventListener("click", async () => {
+      const newNumber = newNumberInput.value.trim();
+
+      if (!/^\d+$/.test(newNumber)) {
+        showStatus("Número inválido. Solo números sin símbolos ni espacios.", false);
+        return;
+      }
+
+      try {
+        await setDoc(doc(db, "config", "whatsapp"), { number: newNumber });
+        currentNumberSpan.textContent = newNumber;
+        newNumberInput.value = "";
+        showStatus("Número actualizado correctamente");
+      } catch (err) {
+        console.error("Error al guardar el número:", err);
+        showStatus("Error al guardar número", false);
+      }
+    });
+  </script>
+</body>
+</html>
